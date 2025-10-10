@@ -3,14 +3,18 @@
 
 #include "protocol/types.hpp"
 
+#include <string>
+#include <vector>
+
 struct TextDocument {
+  size_t positionToOffset(const lsp::Position &position) const;
 
 public:
-  string uri;
+  std::string uri;
   int version;
-  string text;
+  std::string text;
 
-  TextDocument(string uri, int version, string text)
+  TextDocument(std::string uri, int version, std::string text)
       : uri(uri), version(version), text(text) {}
 
   void applyChanges(std::vector<lsp::TextDocumentContentChangeEvent>);

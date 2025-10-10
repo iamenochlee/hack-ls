@@ -1,17 +1,22 @@
 #ifndef MESSAGEHANDLER_HPP
 #define MESSAGEHANDLER_HPP
 
-#include "../../main.hpp"
-#include "../../protocol/lsp.hpp"
+#include "protocol/lsp.hpp"
+
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <string>
+#include <variant>
 
 class MessageHandler {
 private:
-  json message;
+  nlohmann::json message;
 
   void validate_message();
   void is_initialized();
-  lsp::Response generate_response(const optional<variant<string, int>> &id,
-                                  const lsp::Result &result);
+  lsp::Response
+  generate_response(const std::optional<std::variant<std::string, int>> &id,
+                    const lsp::Result &result);
 
   int process_request();
   int process_notification();
@@ -23,7 +28,7 @@ private:
 public:
   lsp::MessageType type;
 
-  MessageHandler(json _message);
+  MessageHandler(nlohmann::json _message);
   int run();
 };
 

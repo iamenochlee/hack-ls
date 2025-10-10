@@ -1,22 +1,17 @@
 #ifndef LSP_RESPONSES_HPP
 #define LSP_RESPONSES_HPP
 
-#include "../main.hpp"
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 #include <variant>
 
-using nlohmann::json;
-using std::optional;
-using std::string;
-using std::variant;
-
 namespace lsp {
 
 struct ServerCapabilities {
-  optional<bool> hoverProvider;
-  optional<bool> definitionProvider;
-  optional<json> experimental;
+  std::optional<bool> hoverProvider;
+  std::optional<bool> definitionProvider;
+  std::optional<nlohmann::json> experimental;
 };
 
 struct InitializeResult {
@@ -24,22 +19,22 @@ struct InitializeResult {
 };
 
 struct DidOpenResult {
-  string uri;
+  std::string uri;
 };
 
 struct DidChangeResult {
-  string uri;
+  std::string uri;
 };
 
 using Result = std::variant<InitializeResult, DidOpenResult, DidChangeResult>;
 
 struct Response {
   int contentLength;
-  json result;
+  nlohmann::json result;
 };
 
 // JSON conversion functions
-inline void to_json(json &j, const InitializeResult &result) {
+inline void to_json(nlohmann::json &j, const InitializeResult &result) {
   ServerCapabilities caps = result.serverCapabilities;
   if (caps.hoverProvider.has_value()) {
     j["serverCapabilities"]["hoverProvider"] = caps.hoverProvider.value();
@@ -53,15 +48,15 @@ inline void to_json(json &j, const InitializeResult &result) {
   }
 }
 
-inline void to_json(json &j, const DidOpenResult &result) {
+inline void to_json(nlohmann::json &j, const DidOpenResult &result) {
   j["uri"] = result.uri;
 }
 
-inline void to_json(json &j, const DidChangeResult &result) {
+inline void to_json(nlohmann::json &j, const DidChangeResult &result) {
   j["uri"] = result.uri;
 }
 
-inline void to_json(json &j, const Result &result) {
+inline void to_json(nlohmann::json &j, const Result &result) {
   std::visit([&j](const auto &res) { j = res; }, result);
 }
 

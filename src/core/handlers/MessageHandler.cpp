@@ -1,7 +1,16 @@
 #include "MessageHandler.hpp"
-#include "../../common/GlobalState.hpp"
+
+#include "common/GlobalState.hpp"
+#include "core/structures/TextDocument.hpp"
 #include "protocol/responses.hpp"
+
 #include <iostream>
+#include <optional>
+#include <string>
+#include <variant>
+
+using namespace std;
+using nlohmann::json;
 
 using GlobalState::documents;
 using GlobalState::initialized;
@@ -26,12 +35,10 @@ void MessageHandler::is_initialized() {
   }
 }
 
-MessageHandler::MessageHandler(json _message) {
-  message = _message;
+MessageHandler::MessageHandler(json _message) : message(_message) {
+  type = lsp::NOTIFICATION;
   if (message.contains("id"))
     type = lsp::REQUEST;
-  else
-    type = lsp::NOTIFICATION;
 }
 
 int MessageHandler::run() {
@@ -124,7 +131,7 @@ lsp::DidChangeResult MessageHandler::didChange(lsp::NotificationMessage notif) {
   json j_didChangeParams = notif.params.value();
   lsp::DidChangeParams didChangeParams = j_didChangeParams;
 
-  TextDocument textDocument = documents.at(didChangeParams.textDocument.uri);
+  TextDocument &textDocument = documents.at(didChangeParams.textDocument.uri);
 
   textDocument.applyChanges(didChangeParams.contentChanges);
   //  // after all changes have been applied

@@ -1,8 +1,12 @@
-#include "main.hpp"
 #include "core/handlers/MessageHandler.hpp"
 #include <iostream>
 #include <map>
+#include <nlohmann/json.hpp>
 #include <sstream>
+#include <string>
+
+using namespace std;
+using nlohmann::json;
 
 int parse_header(const string &line, map<string, int> &headers) {
   istringstream ls(line);

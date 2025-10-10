@@ -1,14 +1,9 @@
 #ifndef LSP_TYPES_HPP
 #define LSP_TYPES_HPP
 
-#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 #include <variant>
-
-using nlohmann::json;
-using std::optional;
-using std::string;
 
 namespace lsp {
 
@@ -23,13 +18,13 @@ struct Range {
 };
 
 struct TextDocumentIdentifier {
-  string uri;
+  std::string uri;
 };
 
 struct TextDocumentItem : public TextDocumentIdentifier {
-  string languageId;
+  std::string languageId;
   int version;
-  string text;
+  std::string text;
 };
 
 struct VersionedTextDocumentIdentifier : public TextDocumentIdentifier {
@@ -38,31 +33,32 @@ struct VersionedTextDocumentIdentifier : public TextDocumentIdentifier {
 
 struct TextDocumentContentChangeEventWithRange {
   Range range;
-  string text;
+  std::string text;
 };
 
 struct TextDocumentContentChangeEventFull {
-  string text;
+  std::string text;
 };
 
 using TextDocumentContentChangeEvent =
     std::variant<TextDocumentContentChangeEventWithRange,
                  TextDocumentContentChangeEventFull>;
 
-using LSPAny = json;
+// TODO: fix this
+using LSPAny = int;
 // Trace value enumeration
 enum class TraceValue { Off, Messages, Verbose };
 
 // Client info structure
 struct ClientInfo {
-  string name;
-  optional<string> version;
+  std::string name;
+  std::optional<std::string> version;
 };
 
 // Workspace folder structure
 struct WorkspaceFolder {
-  string uri;
-  string name;
+  std::string uri;
+  std::string name;
 };
 
 // Placeholder for ClientCapabilities (to be expanded as needed)

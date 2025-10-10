@@ -1,8 +1,8 @@
 #ifndef GLOBALSTATE_HPP
 #define GLOBALSTATE_HPP
 
-#include "../core/structure/TextDocument.hpp"
-#include "main.hpp"
+#include "core/structures/TextDocument.hpp"
+
 #include <map>
 #include <string>
 

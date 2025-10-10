@@ -1,36 +1,36 @@
 #ifndef LSP_MESSAGES_HPP
 #define LSP_MESSAGES_HPP
 
-#include "../main.hpp"
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
-#include <variant>
 
 using nlohmann::json;
-using std::optional;
-using std::string;
-using std::variant;
 
 namespace lsp {
+
+struct Message {
+  std::string jsonrpc;
+};
 
 enum MessageType { NOTIFICATION, REQUEST };
 
 struct RequestMessage : public Message {
-  variant<string, int> id;
-  string method;
-  optional<json> params;
+  std::variant<std::string, int> id;
+  std::string method;
+  std::optional<json> params;
 };
 
 struct NotificationMessage : public Message {
-  string method;
-  optional<json> params;
+  std::string method;
+  std::optional<json> params;
 };
 
 // JSON conversion functions
 inline void from_json(const json &j, RequestMessage &req) {
   j.at("jsonrpc").get_to(req.jsonrpc);
   if (j["id"].is_string()) {
-    req.id = j["id"].get<string>();
+    req.id = j["id"].get<std::string>();
   } else {
     req.id = j["id"].get<int>();
   }
