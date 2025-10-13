@@ -1,12 +1,12 @@
-# Hack LSP - Language Server Implementation
+# Hack (Nand2Tetris) Language Server Implementation
 
-A minimal Language Server Protocol (LSP) implementation in C++ for the Hack programming language.
+A minimal Language Server (LS) implementation in C++ for the Hack assembly language from the Nand2Tetris course.
 
 ## Architecture
 
 ```
 src/
-├── protocol/           # LSP Protocol Layer
+├── protocol/           # LS protocol layer
 │   ├── types.hpp      # Position, Range, TextDocument types
 │   ├── messages.hpp   # RequestMessage, NotificationMessage
 │   ├── params.hpp     # Method parameters (Initialize, DidOpen, DidChange)
@@ -14,12 +14,12 @@ src/
 │   └── lsp.hpp        # Main protocol header
 ├── core/              # Server Implementation
 │   ├── handlers/      
-│   │   └── MessageHandler  # Routes and processes LSP messages
+│   │   └── MessageHandler  # Routes and processes LS messages
 │   └── structures/    
 │       └── TextDocument    # Document state and incremental updates
 ├── common/
 │   └── GlobalState.hpp     # Server state (documents, initialized flag)
-└── main.cpp                # Entry point: LSP message loop over stdin/stdout
+└── main.cpp                # Entry point: LS message loop over stdin/stdout
 ```
 
 
