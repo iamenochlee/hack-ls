@@ -1,34 +1,27 @@
 #ifndef MESSAGEHANDLER_HPP
 #define MESSAGEHANDLER_HPP
 
-#include "protocol/lsp.hpp"
-
+#include "protocol/messages.hpp"
+#include "protocol/responses.hpp"
 #include <nlohmann/json.hpp>
-#include <optional>
-#include <string>
-#include <variant>
 
 class MessageHandler {
 private:
-  nlohmann::json message;
+  nlohmann::json LSPMessage;
 
-  void validate_message();
-  void is_initialized();
-  lsp::Response
-  generate_response(const std::optional<std::variant<std::string, int>> &id,
-                    const lsp::Result &result);
+  int validate_message(nlohmann::json message);
 
   int process_request();
   int process_notification();
 
-  lsp::InitializeResult initialize();
-  lsp::DidOpenResult didOpen(lsp::NotificationMessage notif);
-  lsp::DidChangeResult didChange(lsp::NotificationMessage notif);
+  lsp::InitializeResult initialize(lsp::RequestMessage req);
+  int didOpen(lsp::NotificationMessage notif);
+  int didChange(lsp::NotificationMessage notif);
 
 public:
   lsp::MessageType type;
 
-  MessageHandler(nlohmann::json _message);
+  int set_message(nlohmann::json message);
   int run();
 };
 

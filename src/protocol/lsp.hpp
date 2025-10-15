@@ -22,6 +22,7 @@ constexpr const char *POSITION_ENCODING = "utf-8"; // only utf-8 for now
 constexpr int TEXT_DOCUMENT_SYNC = 2;
 constexpr bool SUPPORTS_DIAGNOSTICS = true;
 constexpr bool SUPPORTS_HOVER = true;
+constexpr bool SUPPORTS_DEFINITION = true;
 
 } // namespace capabilities
 

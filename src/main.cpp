@@ -21,6 +21,8 @@ int parse_header(const string &line, map<string, int> &headers) {
 }
 
 int main() {
+
+  MessageHandler server = MessageHandler();
   while (true) {
     map<string, int> headers;
     //  read headers from stdin
@@ -44,8 +46,8 @@ int main() {
     // pass that to parser
     json message = json::parse(content);
 
-    MessageHandler client_message = MessageHandler(message);
-    client_message.run();
+    server.set_message(message);
+    server.run();
   }
   return 0;
 }

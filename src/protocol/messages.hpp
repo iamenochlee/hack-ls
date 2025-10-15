@@ -4,8 +4,7 @@
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
-
-using nlohmann::json;
+#include <variant>
 
 namespace lsp {
 
@@ -18,16 +17,16 @@ enum MessageType { NOTIFICATION, REQUEST };
 struct RequestMessage : public Message {
   std::variant<std::string, int> id;
   std::string method;
-  std::optional<json> params;
+  nlohmann::json params;
 };
 
 struct NotificationMessage : public Message {
   std::string method;
-  std::optional<json> params;
+  std::optional<nlohmann::json> params;
 };
 
 // JSON conversion functions
-inline void from_json(const json &j, RequestMessage &req) {
+inline void from_json(const nlohmann::json &j, RequestMessage &req) {
   j.at("jsonrpc").get_to(req.jsonrpc);
   if (j["id"].is_string()) {
     req.id = j["id"].get<std::string>();
@@ -40,7 +39,7 @@ inline void from_json(const json &j, RequestMessage &req) {
   }
 }
 
-inline void from_json(const json &j, NotificationMessage &req) {
+inline void from_json(const nlohmann::json &j, NotificationMessage &req) {
   j.at("jsonrpc").get_to(req.jsonrpc);
   j.at("method").get_to(req.method);
   if (j.contains("params")) {
