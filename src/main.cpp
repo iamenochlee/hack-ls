@@ -18,7 +18,7 @@ void log_error_response(lsp::ErrorCode code, const std::string &message = "",
   if (error.data.has_value())
     cerr << "Data: " << error.data.value() << endl;
   else
-    cout << endl;
+    cerr << endl;
 }
 
 int parse_header(const string &line, map<string, int> &headers) {
