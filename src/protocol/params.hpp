@@ -128,16 +128,17 @@ inline void from_json(const nlohmann::json &j, lsp::WorkspaceFolder &wf) {
 }
 
 inline void from_json(const nlohmann::json &j, lsp::ClientCapabilities &c) {
-  if (j.contains("workspace") && j["workspace"].is_object()) {
-    const auto &w = j["workspace"];
+  if (j.contains("workspace") && j.at("workspace").is_object()) {
+    const auto &w = j.at("workspace");
     if (w.contains("applyEdit"))
-      c.workspace.emplace().applyEdit = w["applyEdit"].get<bool>();
+      c.workspace.emplace().applyEdit = w.at("applyEdit").get<bool>();
   }
-  if (j.contains("general") && j["general"].is_object()) {
-    const auto &g = j["general"];
-    if (g.contains("positionEncodings") && g["positionEncodings"].is_array()) {
+  if (j.contains("general") && j.at("general").is_object()) {
+    const auto &g = j.at("general");
+    if (g.contains("positionEncodings") &&
+        g.at("positionEncodings").is_array()) {
       std::vector<std::string> encs;
-      for (const auto &e : g["positionEncodings"]) {
+      for (const auto &e : g.at("positionEncodings")) {
         if (e.is_string())
           encs.push_back(e.get<std::string>());
       }
@@ -151,20 +152,20 @@ inline void from_json(const nlohmann::json &j, lsp::ClientCapabilities &c) {
 
 inline void from_json(const nlohmann::json &j, lsp::InitializeParams &p) {
   // processId: number or null
-  if (j.contains("processId") && !j["processId"].is_null()) {
-    p.processId = j["processId"].get<int>();
+  if (j.contains("processId") && !j.at("processId").is_null()) {
+    p.processId = j.at("processId").get<int>();
   } else {
     p.processId = nullptr;
   }
 
   if (j.contains("clientInfo"))
-    p.clientInfo = j["clientInfo"].get<lsp::ClientInfo>();
-  if (j.contains("locale") && j["locale"].is_string())
-    p.locale = j["locale"].get<std::string>();
+    p.clientInfo = j.at("clientInfo").get<lsp::ClientInfo>();
+  if (j.contains("locale") && j.at("locale").is_string())
+    p.locale = j.at("locale").get<std::string>();
 
   // rootUri: string or null
-  if (j.contains("rootUri") && !j["rootUri"].is_null()) {
-    p.rootUri = j["rootUri"].get<std::string>();
+  if (j.contains("rootUri") && !j.at("rootUri").is_null()) {
+    p.rootUri = j.at("rootUri").get<std::string>();
   } else {
     p.rootUri = nullptr;
   }
@@ -173,8 +174,8 @@ inline void from_json(const nlohmann::json &j, lsp::InitializeParams &p) {
   p.capabilities = j.at("capabilities").get<lsp::ClientCapabilities>();
 
   // trace (optional; minimal)
-  if (j.contains("trace") && j["trace"].is_string()) {
-    const auto v = j["trace"].get<std::string>();
+  if (j.contains("trace") && j.at("trace").is_string()) {
+    const auto v = j.at("trace").get<std::string>();
     if (v == "off")
       p.trace = lsp::TraceValue::Off;
     else if (v == "messages")
@@ -186,28 +187,35 @@ inline void from_json(const nlohmann::json &j, lsp::InitializeParams &p) {
 
 inline void from_json(const nlohmann::json &j,
                       lsp::DidOpenParams &didOpenParams) {
-  j["textDocument"]["uri"].get_to(didOpenParams.textDocument.uri);
-  j["textDocument"]["languageId"].get_to(didOpenParams.textDocument.languageId);
-  j["textDocument"]["version"].get_to(didOpenParams.textDocument.version);
-  j["textDocument"]["text"].get_to(didOpenParams.textDocument.text);
+  j.at("textDocument").at("uri").get_to(didOpenParams.textDocument.uri);
+  j.at("textDocument")
+      .at("languageId")
+      .get_to(didOpenParams.textDocument.languageId);
+  j.at("textDocument").at("version").get_to(didOpenParams.textDocument.version);
+  j.at("textDocument").at("text").get_to(didOpenParams.textDocument.text);
 }
 
 inline void from_json(const nlohmann::json &j,
                       lsp::DidChangeParams &didChangeParams) {
-  j["textDocument"]["uri"].get_to(didChangeParams.textDocument.uri);
-  j["textDocument"]["version"].get_to(didChangeParams.textDocument.version);
+  j.at("textDocument").at("uri").get_to(didChangeParams.textDocument.uri);
+  j.at("textDocument")
+      .at("version")
+      .get_to(didChangeParams.textDocument.version);
 
-  for (auto &change : j["contentChanges"]) {
+  for (auto &change : j.at("contentChanges")) {
     if (change.contains("range")) {
 
       int start_line, start_character, end_line, end_character;
       lsp::Position start, end;
 
-      change["range"]["start"]["line"].get_to<int>(start_line);
-      change["range"]["start"]["character"].get_to<int>(start_character);
+      change.at("range").at("start").at("line").get_to<int>(start_line);
+      change.at("range")
+          .at("start")
+          .at("character")
+          .get_to<int>(start_character);
 
-      change["range"]["end"]["line"].get_to<int>(end_line);
-      change["range"]["end"]["character"].get_to<int>(end_character);
+      change.at("range").at("end").at("line").get_to<int>(end_line);
+      change.at("range").at("end").at("character").get_to<int>(end_character);
 
       start = lsp::Position{start_line, start_character};
       end = lsp::Position{end_line, end_character};
@@ -215,7 +223,7 @@ inline void from_json(const nlohmann::json &j,
       auto range = lsp::Range{start, end};
 
       std::string text;
-      change["text"].get_to<std::string>(text);
+      change.at("text").get_to<std::string>(text);
       didChangeParams.contentChanges.push_back(
           lsp::TextDocumentContentChangeEventWithRange{
               range,
@@ -225,7 +233,7 @@ inline void from_json(const nlohmann::json &j,
     }
 
     std::string text;
-    change["text"].get_to<std::string>(text);
+    change.at("text").get_to<std::string>(text);
     didChangeParams.contentChanges.push_back(
         lsp::TextDocumentContentChangeEventFull{text});
   }

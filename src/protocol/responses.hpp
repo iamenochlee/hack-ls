@@ -2,6 +2,7 @@
 #define LSP_RESPONSES_HPP
 
 #include "nlohmann/json_fwd.hpp"
+#include <exception>
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
@@ -30,12 +31,12 @@ using Result = std::variant<InitializeResult>;
 enum class ErrorCode : int {
   // JSON-RPC 2.0 standard error codes
   PARSE_ERROR = -32700,
-  INVALID_REQUEST = -32600,
-  METHOD_NOT_FOUND = -32601,
-  INVALID_PARAMS = -32602,
+  INVALID_MESSAGE = -32600,
   INTERNAL_ERROR = -32603,
 
   // LSP specific error codes
+  METHOD_NOT_FOUND = -32601,
+  INVALID_PARAMS = -32602,
   SERVER_ERROR_START = -32099,
   SERVER_ERROR_END = -32000,
   SERVER_NOT_INITIALIZED = -32002,
@@ -49,7 +50,7 @@ inline std::string getErrorMessage(ErrorCode code) {
   switch (code) {
   case ErrorCode::PARSE_ERROR:
     return "Parse error";
-  case ErrorCode::INVALID_REQUEST:
+  case ErrorCode::INVALID_MESSAGE:
     return "Invalid Request";
   case ErrorCode::METHOD_NOT_FOUND:
     return "Method not found";
@@ -70,10 +71,18 @@ inline std::string getErrorMessage(ErrorCode code) {
   }
 }
 
-struct Error {
+class Error : public std::exception {
+
+public:
   ErrorCode code;
   std::string message;
   std::optional<nlohmann::json> data;
+
+  Error(lsp::ErrorCode code, std::string msg,
+        std::optional<nlohmann::json> data)
+      : code(code), message(std::move(msg)), data(data) {}
+
+  const char *what() const noexcept override { return message.c_str(); }
 };
 
 struct LSPErrorResponse {

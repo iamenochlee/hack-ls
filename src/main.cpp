@@ -8,6 +8,19 @@
 using namespace std;
 using nlohmann::json;
 
+void log_error_response(lsp::ErrorCode code, const std::string &message = "",
+                        const optional<nlohmann::json> &data = nullopt) {
+
+  lsp::Error error(code, message.empty() ? getErrorMessage(code) : message,
+                   data);
+
+  cerr << "Error: " + error.message + " ";
+  if (error.data.has_value())
+    cerr << "Data: " << error.data.value() << endl;
+  else
+    cout << endl;
+}
+
 int parse_header(const string &line, map<string, int> &headers) {
   istringstream ls(line);
   string field;
@@ -43,8 +56,13 @@ int main() {
     string content(content_length, '\0');
     cin.read(content.data(), content_length);
 
-    // pass that to parser
-    json message = json::parse(content);
+    json message;
+    try {
+      message = json::parse(content);
+    } catch (const std::exception &e) {
+      log_error_response(lsp::ErrorCode::PARSE_ERROR, e.what());
+      continue;
+    }
 
     server.set_message(message);
     server.run();

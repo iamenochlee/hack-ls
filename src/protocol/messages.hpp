@@ -28,10 +28,10 @@ struct NotificationMessage : public Message {
 // JSON conversion functions
 inline void from_json(const nlohmann::json &j, RequestMessage &req) {
   j.at("jsonrpc").get_to(req.jsonrpc);
-  if (j["id"].is_string()) {
-    req.id = j["id"].get<std::string>();
+  if (j.at("id").is_string()) {
+    req.id = j.at("id").get<std::string>();
   } else {
-    req.id = j["id"].get<int>();
+    req.id = j.at("id").get<int>();
   }
   j.at("method").get_to(req.method);
   if (j.contains("params")) {
