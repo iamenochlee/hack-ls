@@ -38,7 +38,7 @@ target_include_directories(hack-language-server PRIVATE
 target_link_libraries(hack-language-server PRIVATE nlohmann_json::nlohmann_json)
 
 # Common warnings
-target_compile_options(hack-language-server PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_options(hack-language-server PRIVATE -Wall -Wextra -Wpedantic -Weffc++)
 
 # Debug vs Release flags
 if(CMAKE_BUILD_TYPE MATCHES Debug)

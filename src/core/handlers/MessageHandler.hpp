@@ -9,10 +9,10 @@ class MessageHandler {
 private:
   nlohmann::json LSPMessage;
 
-  int validate_message(nlohmann::json message);
+  int validateMessage(nlohmann::json message);
 
-  int process_request();
-  int process_notification();
+  int processRequest();
+  int handleNotification();
 
   lsp::InitializeResult initialize(lsp::RequestMessage req);
   int didOpen(lsp::NotificationMessage notif);
@@ -21,7 +21,7 @@ private:
 public:
   lsp::MessageType type;
 
-  int set_message(nlohmann::json message);
+  int setMessage(nlohmann::json message);
   int run();
 };
 
