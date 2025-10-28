@@ -1,8 +1,0 @@
-MaxEmptyLinesToKeep: 1
-KeepEmptyLinesAtTheStartOfBlocks: false
-EmptyLineBeforeAccessModifier: Always
-AllowShortBlocksOnASingleLine: false
-AllowShortFunctionsOnASingleLine: Empty
-AfterControlStatement: Always
-BeforeCatch: true
-BeforeElse: true

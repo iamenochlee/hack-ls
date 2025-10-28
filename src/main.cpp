@@ -1,25 +1,13 @@
-#include "./core/utils.hpp"
+#include "common/logging.hpp"
 #include "core/handlers/MessageHandler.hpp"
+#include "core/transport/io.hpp"
 #include <iostream>
 #include <map>
 #include <nlohmann/json.hpp>
-#include <sstream>
 #include <string>
 
 using namespace std;
 using nlohmann::json;
-
-int parse_header(const string &line, map<string, int> &headers) {
-  istringstream ls(line);
-  string field;
-  int val;
-  getline(ls, field, ':');
-  if (!(ls >> ws >> val)) {
-    return 1;
-  }
-  headers[field] = val;
-  return 0;
-}
 
 int main() {
 
@@ -32,7 +20,7 @@ int main() {
       if (line.empty() || line == "\r")
         break;
 
-      parse_header(line, headers);
+      lsp::parse_header(line, headers);
     }
 
     if (headers.size() == 0) {
@@ -40,9 +28,9 @@ int main() {
     }
 
     // read content length
-    int content_length = headers["Content-Length"];
-    string content(content_length, '\0');
-    cin.read(content.data(), content_length);
+    int contentlength = headers["Content-Length"];
+    string content(contentlength, '\0');
+    cin.read(content.data(), contentlength);
 
     json message;
     try {

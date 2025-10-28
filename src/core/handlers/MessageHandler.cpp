@@ -1,8 +1,9 @@
 #include "MessageHandler.hpp"
 
 #include "common/GlobalState.hpp"
+#include "common/logging.hpp"
 #include "core/structures/TextDocument.hpp"
-#include "core/utils.hpp"
+#include "core/transport/wire.hpp"
 #include "protocol/lsp.hpp"
 #include "protocol/params.hpp"
 #include "protocol/responses.hpp"
