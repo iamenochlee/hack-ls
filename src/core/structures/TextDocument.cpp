@@ -34,16 +34,13 @@ void TextDocument::applyChanges(
             change)) {
 
       text = std::get<lsp::TextDocumentContentChangeEventFull>(change).text;
-      continue:
+      continue;
     } 
-
     
     auto rangedChange =
           std::get<lsp::TextDocumentContentChangeEventWithRange>(change);
 
-      
      // Apply range-based change by replacing text within the specified range
-      
      size_t startOffset = positionToOffset(rangedChange.range.start);
      size_t endOffset = positionToOffset(rangedChange.range.end);
 
