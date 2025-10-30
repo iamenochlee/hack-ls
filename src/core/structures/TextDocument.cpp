@@ -29,6 +29,7 @@ size_t TextDocument::positionToOffset(const lsp::Position &position) const {
 
 void TextDocument::applyChanges(
     std::vector<lsp::TextDocumentContentChangeEvent> changes) {
+
   for (const auto &change : changes) {
     if (std::holds_alternative<lsp::TextDocumentContentChangeEventFull>(
             change)) {
