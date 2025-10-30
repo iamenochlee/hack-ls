@@ -19,7 +19,7 @@ int MessageHandler::validateMessage(nlohmann::json message) {
     message.at("jsonrpc");
     message.at("method");
 
-    return 0;
+    return 1;
 
   } catch (const std::exception &e) {
     if (message.contains("id")) {
@@ -29,24 +29,24 @@ int MessageHandler::validateMessage(nlohmann::json message) {
       _id.is_string() ? id = _id.get<string>() : id = _id.get<int>();
       lsp::send_error_response(id, lsp::ErrorCode::PARSE_ERROR, e.what());
 
-      return 1;
+      return 0;
     }
 
     lsp::log_error_response(lsp::ErrorCode::INVALID_MESSAGE, e.what());
-    return 1;
+    return 0;
   }
 }
 
 int MessageHandler::setMessage(nlohmann::json message) {
-  if (validateMessage(message))
-    return 1;
+  if (!validateMessage(message))
+    return 0;
 
   LSPMessage = message;
   type = lsp::NOTIFICATION;
   if (message.contains("id"))
     type = lsp::REQUEST;
 
-  return 0;
+  return 1;
 }
 
 int MessageHandler::run() {
