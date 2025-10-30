@@ -41,7 +41,7 @@ int main() {
       continue;
     }
 
-    if (server.setMessage(message))
+    if (!server.setMessage(message))
       continue;
 
     server.run();
