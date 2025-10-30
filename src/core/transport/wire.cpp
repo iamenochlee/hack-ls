@@ -19,8 +19,8 @@ static lsp::LSPResponse generate_success(const variant<string, int> &id,
                                      : msg["id"] = std::get<int>(id);
 
   msg["result"] = result;
-  int contentLength = static_cast<int>(msg.dump().size());
-  return {contentLength, msg};
+  int contentlength = static_cast<int>(msg.dump().size());
+  return {contentlength, msg};
 }
 
 void send_response(const variant<string, int> &id, const lsp::Result &result) {
@@ -41,8 +41,8 @@ generate_error(const optional<variant<string, int>> &id,
   }
   msg["error"] = error;
 
-  int contentLength = static_cast<int>(msg.dump().size());
-  return {contentLength, error};
+  int contentlength = static_cast<int>(msg.dump().size());
+  return {contentlength, error};
 }
 
 void send_error_response(const variant<string, int> &id, lsp::ErrorCode code,
