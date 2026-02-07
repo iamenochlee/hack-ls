@@ -53,23 +53,43 @@ The server communicates via stdin/stdout using the LSP protocol.
 
 The project includes a test script (`test.sh`) that exercises the LSP server with multiple Hack assembly files.
 
+### Basic Usage
+
 ```bash
-./test.sh --shutdown | ./build/bin/hack-ls --stdio
+./test.sh --shutdown tests/ | ./build/bin/hack-ls --stdio
 ```
+
+### Options
+
+- `-h, --help` - Show help message and exit
+- `--shutdown` - Send proper LSP shutdown sequence before exiting
+
+### What the Test Script Does
 
 The test script will:
 - Initialize the LSP server
-- Open multiple `.asm` files from `tests/` directory
-- Test document changes (`didChange`)
-- Test completion requests with various trigger characters (`@`, `=`, `;`)
-- Test hover requests for symbols
-- Test manual completion triggers
-- Properly shutdown the server (when using `--shutdown` flag)
+- Open all `.asm` files from the specified folder (excluding files ending with "2")
+- Send `didChange` notifications for files ending with "2" (e.g., `Add2.asm` updates `Add.asm`)
+- Test completion requests at random positions
+- Test hover requests at random positions
+- Optionally shutdown the server properly (when using `--shutdown` flag)
 
-For all available options, run:
+### Examples
+
 ```bash
+# Test with proper shutdown
+./test.sh --shutdown tests/ | ./build/bin/hack-ls --stdio
+
+# Test without shutdown (server will detect EOF)
+./test.sh tests/ | ./build/bin/hack-ls --stdio
+
+# Show help
 ./test.sh -h
 ```
+
+### Requirements
+
+The test script requires `jq` to be installed and available in your PATH.
 
 ## Development
 

@@ -7,12 +7,52 @@ if ! command -v jq >/dev/null 2>&1; then
     exit 1
 fi
 
+# Show help message
+show_help() {
+    cat << EOF
+Usage: $0 [OPTIONS] <relative_folder_path>
+
+Test script for the Hack Language Server Protocol (LSP) server.
+
+ARGUMENTS:
+    relative_folder_path    Path to folder containing .asm files to test
+
+OPTIONS:
+    -h, --help              Show this help message and exit
+    --shutdown              Send proper LSP shutdown sequence before exiting
+
+DESCRIPTION:
+    This script exercises the LSP server by:
+    - Initializing the LSP server
+    - Opening all .asm files from the specified folder (excluding files ending with "2")
+    - Sending didChange notifications for files ending with "2" (e.g., Add2.asm)
+    - Testing completion requests at random positions
+    - Testing hover requests at random positions
+    - Optionally shutting down the server properly
+
+EXAMPLES:
+    # Test with proper shutdown
+    $0 --shutdown tests/ | ./build/bin/hack-ls --stdio
+
+    # Test without shutdown (server will detect EOF)
+    $0 tests/ | ./build/bin/hack-ls --stdio
+
+REQUIREMENTS:
+    - jq must be installed and available in PATH
+
+EOF
+}
+
 # Parse arguments
 SHUTDOWN=false
 RELATIVE_PATH=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
+        -h|--help)
+            show_help
+            exit 0
+            ;;
         --shutdown)
             SHUTDOWN=true
             shift
@@ -22,6 +62,7 @@ while [[ $# -gt 0 ]]; do
                 RELATIVE_PATH="$1"
             else
                 echo "Error: Multiple folder paths provided" >&2
+                echo "Run '$0 --help' for usage information." >&2
                 exit 1
             fi
             shift
@@ -30,7 +71,9 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [ -z "$RELATIVE_PATH" ]; then
-    echo "Usage: $0 [--shutdown] <relative_folder_path>" >&2
+    echo "Error: relative_folder_path is required" >&2
+    echo "Usage: $0 [OPTIONS] <relative_folder_path>" >&2
+    echo "Run '$0 --help' for more information." >&2
     exit 1
 fi
 
