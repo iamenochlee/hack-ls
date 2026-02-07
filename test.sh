@@ -1,386 +1,326 @@
 #!/bin/bash
+set -eou pipefail
 
-# Script to generate LSP test messages for multiple .asm files
-# Usage: ./test.sh | your-lsp-server
-# Or: ./test.sh --shutdown | your-lsp-server  (to test proper shutdown)
-
-set -euo pipefail
-
-# Check prerequisites
-if ! command -v jq &> /dev/null; then
-    echo "Error: jq is required but not installed. Please install jq to run this script." >&2
-    echo "  macOS: brew install jq" >&2
-    echo "  Linux: apt-get install jq  or  yum install jq" >&2
+# Check if jq is available
+if ! command -v jq >/dev/null 2>&1; then
+    echo "Error: jq is required but not found. Please install jq." >&2
     exit 1
 fi
 
-# Get the absolute path to the script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ASM_DIR="$SCRIPT_DIR/tests"
+# Parse arguments
+SHUTDOWN=false
+RELATIVE_PATH=""
 
-# Configuration
-REQUEST_ID_TYPE="${REQUEST_ID_TYPE:-int}"  # Default to int, can be overridden
-SHUTDOWN="${SHUTDOWN:-false}"  # Set to true to test shutdown sequence
-VERBOSE="${VERBOSE:-true}"     # Set to false to suppress status messages
-
-# Function to URL encode file path (simple version - handles spaces and common chars)
-url_encode() {
-    local string="$1"
-    # Return empty if input is empty
-    if [ -z "$string" ]; then
-        echo -n ""
-        return
-    fi
-    
-    echo -n "$string" | sed 's/ /%20/g'
-}
-
-# Helper function to escape file content for JSON using jq
-escape_json_content() {
-    local file_path="$1"
-    if [ ! -f "$file_path" ]; then
-        echo ""
-        return 1
-    fi
-    # Use jq to properly escape the content as a JSON string
-    # -R reads raw input, -s reads all input into a single string
-    cat "$file_path" | jq -Rs .
-}
-
-# Helper function to send LSP message
-send_lsp_message() {
-    local json_body="$1"
-    local content_length=$(printf "%s" "$json_body" | wc -c | tr -d ' ')
-    printf "Content-Length: %d\r\n\r\n%s" "$content_length" "$json_body"
-}
-
-# Helper function to log status
-log_status() {
-    if [ "$VERBOSE" = "true" ]; then
-        echo -e "\033[33m$1\033[0m" >&2
-    fi
-}
-
-# Function to create didOpen message
-create_did_open() {
-    local file_path="$1"
-    local filename=$(basename "$file_path")
-    local encoded_path=$(url_encode "$file_path")
-    local uri="file://$encoded_path"
-
-    if [ ! -f "$file_path" ]; then
-        log_status "Error: File '$file_path' not found"
-        return 1
-    fi
-
-    local content=$(escape_json_content "$file_path")
-    local json_body="{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"$uri\",\"languageId\":\"asm\",\"version\":1,\"text\":$content}}}"
-    
-    send_lsp_message "$json_body"
-    printf "\n" >&2
-    log_status "didOpen: --> $filename"
-    sleep 0.1
-}
-
-# Function to create didChange message
-create_did_change() {
-    local content_file="$1"  # File to read content from
-    local uri_file="${2:-$1}"  # File to use for URI (defaults to content_file)
-    local version="${3:-2}"   # Document version
-
-    # Validate file paths
-    if [ ! -f "$content_file" ]; then
-        log_status "Error: Content file '$content_file' not found"
-        return 1
-    fi
-
-    if [ ! -f "$uri_file" ]; then
-        log_status "Error: URI file '$uri_file' not found"
-        return 1
-    fi
-
-    local filename=$(basename "$uri_file")
-    local encoded_path=$(url_encode "$uri_file")
-    local uri="file://$encoded_path"
-
-    
-    local content=$(escape_json_content "$content_file")
-    local json_body="{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didChange\",\"params\":{\"textDocument\":{\"uri\":\"$uri\",\"version\":$version},\"contentChanges\":[{\"text\":$content}]}}"
-    
-
-    send_lsp_message "$json_body"
-    printf "\n" >&2
-    log_status "didChange: --> $filename (version: $version)"
-    sleep 0.1
-}
-
-# Function to create didClose message
-create_did_close() {
-    local file_path="$1"
-    local filename=$(basename "$file_path")
-    local encoded_path=$(url_encode "$file_path")
-    local uri="file://$encoded_path"
-
-   
-    local json_body="{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didClose\",\"params\":{\"textDocument\":{\"uri\":\"$uri\"}}}"
-
-    send_lsp_message "$json_body"
-    printf "\n" >&2
-    log_status "didClose: --> $filename"
-    sleep 0.1
-}
-
-# Function to create completion request
-create_completion() {
-    local file_path="$1"
-    local filename=$(basename "$file_path")
-    local line="$2"
-    local character="$3"
-    local trigger_char="$4"
-    local request_id="$5"
-    local encoded_path=$(url_encode "$file_path")
-    local uri="file://$encoded_path"
-
-    # Format ID based on REQUEST_ID_TYPE variable
-    local id_value
-    if [ "$REQUEST_ID_TYPE" = "string" ]; then
-        id_value="\"$request_id\""
-    else
-        id_value="$request_id"
-    fi
-
-    local json_body
-    if [ -n "$trigger_char" ]; then
-        json_body="{\"jsonrpc\":\"2.0\",\"id\":$id_value,\"method\":\"textDocument/completion\",\"params\":{\"textDocument\":{\"uri\":\"$uri\"},\"position\":{\"line\":$line,\"character\":$character},\"context\":{\"triggerKind\":2,\"triggerCharacter\":\"$trigger_char\"}}}"
-    else
-        json_body="{\"jsonrpc\":\"2.0\",\"id\":$id_value,\"method\":\"textDocument/completion\",\"params\":{\"textDocument\":{\"uri\":\"$uri\"},\"position\":{\"line\":$line,\"character\":$character},\"context\":{\"triggerKind\":1}}}"
-    fi
-
-    send_lsp_message "$json_body"
-    printf "\n" >&2
-    log_status "completion: --> $filename (line:$line, char:$character, trigger:'$trigger_char')"
-    sleep 0.1
-}
-
-# Function to create hover request
-create_hover() {
-    local file_path="$1"
-    local filename=$(basename "$file_path")
-    local line="$2"
-    local character="$3"
-    local request_id="$4"
-    local encoded_path=$(url_encode "$file_path")
-    local uri="file://$encoded_path"
-
-    # Format ID based on REQUEST_ID_TYPE variable
-    local id_value
-    if [ "$REQUEST_ID_TYPE" = "string" ]; then
-        id_value="\"$request_id\""
-    else
-        id_value="$request_id"
-    fi
-
-    local json_body="{\"jsonrpc\":\"2.0\",\"id\":$id_value,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"$uri\"},\"position\":{\"line\":$line,\"character\":$character}}}"
-
-    send_lsp_message "$json_body"
-    printf "\n" >&2
-    log_status "hover: --> $filename (line:$line, char:$character)"
-    sleep 0.1
-}
-
-# Function to create shutdown request
-create_shutdown() {
-    local request_id="${1:-999}"
-    local id_value
-    if [ "$REQUEST_ID_TYPE" = "string" ]; then
-        id_value="\"$request_id\""
-    else
-        id_value="$request_id"
-    fi
-
-    local json_body="{\"jsonrpc\":\"2.0\",\"id\":$id_value,\"method\":\"shutdown\",\"params\":null}"
-    send_lsp_message "$json_body"
-    log_status "shutdown: --> request sent"
-    sleep 0.2  # Give server time to process shutdown
-}
-
-# Function to create exit notification
-create_exit() {
-    local json_body="{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}"
-    send_lsp_message "$json_body"
-    log_status "exit: --> notification sent"
-}
-
-# Function to create initialize request
-create_init() {
-    local root_uri="$1"
-    local process_id="${2:-12345}"
-
-    
-    json_body="{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"processId\":$process_id,\"rootUri\":\"$root_uri\",\"capabilities\":{\"textDocument\":{\"completion\":{\"completionItem\":{\"snippetSupport\":true}}}},\"clientInfo\":{\"name\":\"test-client\",\"version\":\"1.0.0\"}}}"
-  
-
-    send_lsp_message "$json_body"
-    log_status "initialize: --> starting"
-    sleep 0.2  # Give server time to respond
-}
-
-# Parse command line arguments
-for arg in "$@"; do
-    case $arg in
+while [[ $# -gt 0 ]]; do
+    case $1 in
         --shutdown)
             SHUTDOWN=true
             shift
             ;;
-        --verbose)
-            VERBOSE=true
-            shift
-            ;;
-        --quiet)
-            VERBOSE=false
-            shift
-            ;;
-        --help|-h)
-            echo "Usage: $0 [OPTIONS]"
-            echo ""
-            echo "Options:"
-            echo "  --shutdown        Test proper shutdown sequence"
-            echo "  --verbose         Show status messages (default)"
-            echo "  --quiet           Suppress status messages"
-            echo "  --help, -h        Show this help message"
-            echo ""
-            echo "Environment variables:"
-            echo "  REQUEST_ID_TYPE   Request ID type: 'int' or 'string' (default: int)"
-            echo "                    Use 'string' for string IDs, 'int' for numeric IDs"
-            echo "  SHUTDOWN          Set to 'true' to test shutdown"
-            echo "  VERBOSE           Set to 'false' to suppress output"
-            echo ""
-            echo "Examples:"
-            echo "  $0 | ./hack-ls                    # Run with default settings"
-            echo "  REQUEST_ID_TYPE=string $0 | ./hack-ls  # Use string request IDs"
-            echo ""
-            exit 0
-            ;;
         *)
-            echo "Unknown option: $arg" >&2
-            echo "Use --help for usage information" >&2
-            exit 1
+            if [ -z "$RELATIVE_PATH" ]; then
+                RELATIVE_PATH="$1"
+            else
+                echo "Error: Multiple folder paths provided" >&2
+                exit 1
+            fi
+            shift
             ;;
     esac
 done
 
-# Validate ASM directory exists
-if [ ! -d "$ASM_DIR" ]; then
-    echo "Error: ASM directory not found: $ASM_DIR" >&2
+if [ -z "$RELATIVE_PATH" ]; then
+    echo "Usage: $0 [--shutdown] <relative_folder_path>" >&2
     exit 1
 fi
 
+LANGUAGE_ID="hack"
+SOURCE_FOLDER="$(pwd)/${RELATIVE_PATH}"
+ID=0
 
-# Function to generate all test messages
-generate_test_messages() {
-    # Send initialize request
-    ROOT_URI="file://$SCRIPT_DIR"
-    create_init "$ROOT_URI"
 
-    # Send initialized notification (no params field)
-    init_notif='{"jsonrpc":"2.0","method":"initialized"}'
-    
-    send_lsp_message "$init_notif"
-    printf "\n" >&2
-    log_status "initialized: --> notification"
-    sleep 0.1
+# Check if folder exists
+if [ ! -d "$SOURCE_FOLDER" ]; then
+    echo "Error: Folder does not exist: $SOURCE_FOLDER" >&2
+    exit 1
+fi
 
-    # Process each .asm file
-    request_id=2
-    opened_files=()
-    shutdown_request_id=999  # Use a high number for shutdown to avoid conflicts
-
-    for asm_file in "$ASM_DIR"/*.asm; do
-        if [ ! -f "$asm_file" ]; then
-            continue
-        fi
-
-        filename=$(basename "$asm_file")
-
-        # Skip Add2.asm and Max2.asm - they'll be used for didChange
-        if [ "$filename" = "Add2.asm" ] || [ "$filename" = "Max2.asm" ]; then
-            continue
-        fi
-
-        # Get absolute path for URI
-        abs_path=$(cd "$(dirname "$asm_file")" && pwd)/$(basename "$asm_file")
-        opened_files+=("$abs_path")
-
-        # For Add.asm and Max.asm: didOpen -> didChange -> completions
-        create_did_open "$abs_path"
-
-        # Check if corresponding *2.asm file exists and send didChange
-        base_name="${filename%.asm}"
-        change_file="$ASM_DIR/${base_name}2.asm"
-        if [ -f "$change_file" ]; then
-            change_abs_path=$(cd "$(dirname "$change_file")" && pwd)/$(basename "$change_file")
-            create_did_change "$change_abs_path" "$abs_path" 2
-
-            # Add hover requests for specific symbols
-            if [ "$filename" = "Add.asm" ]; then
-                # Hover on R5 in Add2.asm (line 8, character 2 - after @R)
-                create_hover "$abs_path" 7 2 $request_id
-                request_id=$((request_id + 1))
-                # Hover on R5 in Add2.asm (line 10, character 0 - @)
-                create_hover "$abs_path" 9 0 $request_id
-                request_id=$((request_id + 1))
-            elif [ "$filename" = "Max.asm" ]; then
-                # Hover on OUTPUT_FIRST in Max2.asm (line 12, character 5 - on OUTPUT_FIRST, after @)
-                create_hover "$abs_path" 11 16 $request_id
-                request_id=$((request_id + 1))
-            fi
-        fi
-
-        # Send completion requests with different trigger characters
-        # @ trigger (symbols) - position after @ on line 8
-        create_completion "$abs_path" 7 1 "@" $request_id
-        request_id=$((request_id + 1))
-
-        # = trigger (comps) - position after = on line 9 (D=A)
-        create_completion "$abs_path" 8 2 "=" $request_id
-        request_id=$((request_id + 1))
-
-        # ; trigger (jumps) - position after ; (if we had a jump instruction)
-        # For Max.asm which has jumps, use line 12 (D;JGT)
-        if [ "$filename" = "Max.asm" ]; then
-            create_completion "$abs_path" 11 2 ";" $request_id
-            request_id=$((request_id + 1))
-        fi
-
-        # Manual trigger (no trigger character - all completions)
-        # Position in middle of a line
-        create_completion "$abs_path" 7 2 "" $request_id
-        request_id=$((request_id + 1))
-    done
-
-    # Test didClose for all opened files
-    if [ "$SHUTDOWN" = "false" ]; then
-        for file_path in "${opened_files[@]}"; do
-            create_did_close "$file_path"
-        done
-    fi
-
-    # Send shutdown and exit if requested
-    if [ "$SHUTDOWN" = "true" ]; then
-        log_status "Sending shutdown request..."
-        create_shutdown "$shutdown_request_id"
-        echo ""
-        sleep 0.2
-        log_status "Sending exit notification..."
-        create_exit
-        echo ""
-    else
-        log_status "Keeping connection open (use --shutdown to test proper shutdown)"
-        # Keep pipe open for interactive use
-        cat
-    fi
+log(){
+    local message=$1
+    printf "\n\033[33m[CLIENT]:\033[0m%s\n" "$message" >&2
 }
 
-# Generate and output test messages to stdout
-# User can pipe this to their LSP server: ./test.sh | your-lsp-server
-generate_test_messages
+echo "[INFO] Using source folder: $SOURCE_FOLDER" >&2
+
+send_request(){
+    local id=$1
+    local method=$2
+    local params=$3
+    
+    local body="{\"jsonrpc\":\"2.0\",\"id\":${id},\"method\":\"${method}\",\"params\":${params}}"
+    local content_length=${#body}
+
+    # Use actual CRLF for header, but keep body as literal string
+    printf "Content-Length: %d\r\n\r\n%s" "$content_length" "$body"
+
+    ID=$((ID+1))
+}
+
+send_notification(){
+    local method=$1
+    local params=$2
+    
+    local body="{\"jsonrpc\":\"2.0\",\"method\":\"${method}\",\"params\":${params}}"
+    local content_length=${#body}
+
+    # Use actual CRLF for header, but keep body as literal string
+    printf "Content-Length: %d\r\n\r\n%s" "$content_length" "$body"
+}
+
+
+send_initialize(){
+    local root_uri="file://${SOURCE_FOLDER}"
+    local process_id=$$
+    
+    # Build initialize params with proper capabilities
+    local params
+    params=$(jq -n \
+        --argjson processId "$process_id" \
+        --arg rootUri "$root_uri" \
+        '{
+            "processId": $processId,
+            "rootUri": $rootUri,
+            "capabilities": {},
+            "clientInfo": {
+                "name": "test-client",
+                "version": "1.0.0"
+            }
+        }')
+    
+    log "REQUEST: Initialize"
+    send_request "$ID" "initialize" "$params"
+}
+
+send_did_open(){
+    # Handle case where glob doesn't match (no files)
+    shopt -s nullglob
+    for file in "$SOURCE_FOLDER"/*; do
+        # Skip if not a regular file
+        [ -f "$file" ] || continue
+        
+        # Skip files ending with "2" before extension (e.g., Add2.asm)
+        local basename
+        basename=$(basename "$file")
+        local name_no_ext="${basename%.*}"
+        if [[ "$name_no_ext" =~ 2$ ]]; then
+            continue
+        fi
+        
+        local file_path="$file"
+        local file_uri="file://${file_path}"
+        
+        # Build params JSON using jq for proper escaping of all control chars including CR
+        local params
+        params=$(jq -n \
+            --arg uri "$file_uri" \
+            --arg languageId "$LANGUAGE_ID" \
+            --rawfile text "$file" \
+            '{"textDocument":{"uri":$uri,"languageId":$languageId,"version":1,"text":$text}}')
+        
+        log "NOTIFICATION: textDocument/didOpen ${file}"
+        send_notification "textDocument/didOpen" "$params" || true
+    done
+    shopt -u nullglob
+}
+
+send_did_change(){
+    # Handle case where glob doesn't match (no files)
+    shopt -s nullglob
+    for file in "$SOURCE_FOLDER"/*; do
+        # Skip if not a regular file
+        [ -f "$file" ] || continue
+        
+        # Only process files ending with "2" before extension (e.g., Add2.asm)
+        local basename
+        basename=$(basename "$file")
+        local name_no_ext="${basename%.*}"
+        if [[ ! "$name_no_ext" =~ 2$ ]]; then
+            continue
+        fi
+        
+        # Remove "2" from filename for URI to match the file opened with didOpen
+        local dir_path
+        dir_path=$(dirname "$file")
+        local name_without_2="${name_no_ext%2}"
+        local extension="${basename##*.}"
+        local original_basename="${name_without_2}.${extension}"
+        local original_file_path="${dir_path}/${original_basename}"
+        local file_uri="file://${original_file_path}"
+        
+        # Build params JSON for didChange - need textDocument with version and contentChanges
+        local params
+        params=$(jq -n \
+            --arg uri "$file_uri" \
+            --rawfile text "$file" \
+            '{"textDocument":{"uri":$uri,"version":2},"contentChanges":[{"text":$text}]}')
+        
+        log "NOTIFICATION: textDocument/didChange ${file}"
+        send_notification "textDocument/didChange" "$params" || true
+    done
+    shopt -u nullglob
+}
+
+# Get random position in a file (returns line and character)
+get_random_position(){
+    local file=$1
+    local line_count
+    line_count=$(wc -l < "$file" 2>/dev/null || echo "0")
+    
+    # If file is empty or has no lines, use position 0,0
+    if [ "$line_count" -eq 0 ]; then
+        echo "0 0"
+        return
+    fi
+    
+    # Generate random line (0-indexed for LSP, so 0 to line_count-1)
+    local random_line
+    random_line=$((RANDOM % line_count))
+    
+    # Get the line content to determine max character
+    local line_content
+    line_content=$(sed -n "$((random_line + 1))p" "$file" 2>/dev/null || echo "")
+    local line_length=${#line_content}
+    
+    # Generate random character position (0-indexed, 0 to line_length)
+    local random_char
+    random_char=$((RANDOM % (line_length + 1)))
+    
+    echo "$random_line $random_char"
+}
+
+send_completion_request(){
+    # Get list of opened files (non-2 files)
+    shopt -s nullglob
+    local files=()
+    for file in "$SOURCE_FOLDER"/*; do
+        [ -f "$file" ] || continue
+        local basename
+        basename=$(basename "$file")
+        local name_no_ext="${basename%.*}"
+        if [[ ! "$name_no_ext" =~ 2$ ]]; then
+            files+=("$file")
+        fi
+    done
+    shopt -u nullglob
+    
+    # Pick a random file
+    if [ ${#files[@]} -eq 0 ]; then
+        return
+    fi
+    
+    local random_idx
+    random_idx=$((RANDOM % ${#files[@]}))
+    local selected_file="${files[$random_idx]}"
+    local file_uri="file://${selected_file}"
+    
+    # Get random position
+    local position
+    position=$(get_random_position "$selected_file")
+    local line
+    line=$(echo "$position" | cut -d' ' -f1)
+    local character
+    character=$(echo "$position" | cut -d' ' -f2)
+    
+    # Build params JSON
+    local params
+    params=$(jq -n \
+        --arg uri "$file_uri" \
+        --argjson line "$line" \
+        --argjson character "$character" \
+        '{"textDocument":{"uri":$uri},"position":{"line":$line,"character":$character}}')
+    
+    log "REQUEST: textDocument/completion at line $line, char $character in $(basename "$selected_file")"
+    send_request "$ID" "textDocument/completion" "$params" || true
+}
+
+send_hover_request(){
+    # Get list of opened files (non-2 files)
+    shopt -s nullglob
+    local files=()
+    for file in "$SOURCE_FOLDER"/*; do
+        [ -f "$file" ] || continue
+        local basename
+        basename=$(basename "$file")
+        local name_no_ext="${basename%.*}"
+        if [[ ! "$name_no_ext" =~ 2$ ]]; then
+            files+=("$file")
+        fi
+    done
+    shopt -u nullglob
+    
+    # Pick a random file
+    if [ ${#files[@]} -eq 0 ]; then
+        return
+    fi
+    
+    local random_idx
+    random_idx=$((RANDOM % ${#files[@]}))
+    local selected_file="${files[$random_idx]}"
+    local file_uri="file://${selected_file}"
+    
+    # Get random position
+    local position
+    position=$(get_random_position "$selected_file")
+    local line
+    line=$(echo "$position" | cut -d' ' -f1)
+    local character
+    character=$(echo "$position" | cut -d' ' -f2)
+    
+    # Build params JSON
+    local params
+    params=$(jq -n \
+        --arg uri "$file_uri" \
+        --argjson line "$line" \
+        --argjson character "$character" \
+        '{"textDocument":{"uri":$uri},"position":{"line":$line,"character":$character}}')
+    
+    log "REQUEST: textDocument/hover at line $line, char $character in $(basename "$selected_file")"
+    send_request "$ID" "textDocument/hover" "$params" || true
+}
+
+
+
+send_initialize
+
+log "NOTIFICATION: Initialized"
+send_notification "initialized" "{}"
+
+send_did_open
+send_did_change
+
+# Send completion and hover requests at random positions
+send_completion_request
+send_hover_request
+
+# Shutdown sequence (only if --shutdown flag is provided)
+if [ "$SHUTDOWN" = true ]; then
+    # Wait for responses to be processed
+    sleep 0.2
+
+    log "REQUEST: Shutdown"
+    send_request "$ID" "shutdown" "{}"
+
+    # Wait for shutdown response
+    sleep 0.1
+
+    log "NOTIFICATION: Exit"
+    send_notification "exit" "{}"
+else
+    sleep 2
+    log "Script finished (server will detect EOF and may shut down)"
+    log "Use --shutdown flag for proper LSP shutdown sequence"
+fi
+
+
+
+
